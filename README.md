@@ -16,7 +16,7 @@ This repository contains a Retrieval-Augmented Generation (RAG) application that
 
 ## Getting Started
 
-### 1. Clone this Repository
+1. Clone this Repository
 
 ```bash
 git clone https://github.com/yourusername/your-repo.git
