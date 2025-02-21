@@ -1,0 +1,12 @@
+model_name: "deepseek-r1:1.5b"
+# Adjust according to your documents' language. This one is default, best for english ones.
+embedding_model_name: "sentence-transformers/all-mpnet-base-v2"
+#for Polish speaking people this one is much better - embedding_model_name: "sdadas/stella-pl-retrieval"
+max_memory_gb: 3.0
+index_path: "faiss_index"
+remove_think: true
+
+# Now a list of folder paths:
+folder_paths:
+  - "/XXX/YYY/ZZZ"
+  - "/XXX2/YYY2/ZZZ2"

@@ -1,0 +1,41 @@
+# Core Python version requirement
+# python_version >= "3.10"
+numpy<2
+# FAISS CPU version
+faiss-cpu
+
+# For local vector store & retrieval
+langchain_community
+langchain_core
+langchain_text_splitters
+langchain_huggingface
+langchain_ollama
+
+# PDF parsing
+pdfplumber
+
+# DOCX parsing
+python-docx
+
+# XLSX parsing
+openpyxl
+
+# System memory checks
+psutil
+
+# YAML config
+PyYAML
+
+# Gradio UI
+gradio
+
+# Regex, logging, os, re are built-in, no need to specify
+
+transformers
+sentence-transformers
+torch
+huggingface_hub
+
+# If you run into missing dependencies, consider also installing:
+# accelerate
+# bitsandbytes (for quantized models, if used)
