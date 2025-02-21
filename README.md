@@ -1,100 +1,145 @@
 # RAG Pipeline with Gradio and FAISS
 
-This repository contains a Retrieval-Augmented Generation (RAG) application that:
-- **Extracts** text from multiple document types (PDF, DOCX, XLSX, TXT).
-- **Embeds** them with HuggingFace embeddings.
-- **Indexes** them in a FAISS vector store.
-- **Runs** a local Large Language Model (LLM) via [Ollama](https://github.com/jmorganca/ollama) (Mac) or any other model you configure.
-- **Serves** a Gradio interface to answer questions against these indexed documents.
+This repository contains a **Retrieval-Augmented Generation (RAG) pipeline** with:
+- **Multi-document ingestion**: Extracts text from PDFs, DOCX, XLSX, CSV, and TXT files.
+- **Multi-folder support**: Indexes documents from multiple directories.
+- **Vector storage with FAISS**: Uses embeddings for semantic search.
+- **Conversational memory**: Supports multi-turn chat history.
+- **Gradio-based UI**: Provides an easy-to-use chatbot interface.
+- **LLM integration**: Uses an Ollama model for response generation.
 
-## Features
+## **Features**
+- ✅ **Multiple folder support** (specify more than one directory in `config.yaml`).
+- ✅ **Expanded file support**: Now supports **CSV** in addition to **PDF, DOCX, XLSX, and TXT**.
+- ✅ **Conversation memory**: The chatbot remembers previous questions in the session.
+- ✅ **Automatic FAISS index reuse**: Saves and reloads the index instead of rebuilding it every time.
+- ✅ **Gradio-based UI**: Interactive web interface to ask questions.
 
-1. **Config File**: All critical parameters (e.g., model name, folder path, etc.) are stored in `config.yaml`.
-2. **Automatic Retrieval**: Your queries are turned into vector embeddings, and the most relevant chunks are retrieved and passed to the LLM.
-3. **Gradio UI**: A simple interface for asking questions about your documents.
-4. **Optional**: Remove `<think>` annotations from LLM output, controlled by a config parameter (`remove_think`).
+---
 
-## Getting Started
+## **1. Installation**
 
-1. Clone this Repository
-
+### **1.1. Clone the Repository**
 ```bash
 git clone https://github.com/yourusername/your-repo.git
 cd your-repo
 
-2. Create a Virtual Environment
-
-It is recommended to use a Python virtual environment:
+1.2. Set Up Virtual Environment
 
 python3 -m venv venv
-source venv/bin/activate   # On macOS/Linux
-# or
-venv\Scripts\activate.bat  # On Windows
+source venv/bin/activate  # macOS/Linux
+# OR (Windows)
+venv\Scripts\activate.bat
 
-3. Install Dependencies
-
-Install all required libraries from requirements.txt:
+1.3. Install Dependencies
 
 pip install --upgrade pip
 pip install -r requirements.txt
 
-4. Verify or Update config.yaml
+2. Configuration
 
-Make sure your config.yaml has the correct paths and model names for your environment. Example:
+Before running, edit config.yaml to specify:
+
+    The folders where your documents are stored.
+    The LLM model to use.
+    Whether to strip <think> blocks from responses.
+
+Example config.yaml
 
 model_name: "deepseek-r1:1.5b"
-embedding_model_name: "sdadas/stella-pl-retrieval"
-folder_path: "/data"
-index_path: "faiss_index"
+embedding_model_name: "sentence-transformers/all-mpnet-base-v2"
 max_memory_gb: 3.0
+index_path: "faiss_index"
 remove_think: true
 
-    model_name: The name or path of the model you want to load via Ollama.
-    embedding_model_name: A HuggingFace model for generating embeddings.
-    folder_path: Where the script will recursively look for PDF, DOCX, XLSX, and TXT files.
-    index_path: Where the FAISS index will be created or loaded.
-    max_memory_gb: A threshold for a memory check (you’ll see a warning if available memory is below this).
-    remove_think: true means the script will remove <think>...</think> blocks from final answers.
+folder_paths:
+  - "/Users/pawel/edyta_pendrive_backup"
+  - "/Users/pawel/KsiegiWieczyste/ksiegi"
 
-5. Install & Run Ollama
-
-Install and run Ollama on macOS:
-
-brew install ollama/tap/ollama
-ollama serve
-
-If you are not on macOS use this link to get info how to run Ollama on different operating system 
-https://github.com/ollama/ollama?tab=readme-ov-file
-
-Run Ollama server in separate terminal window 
-
-
-
-6. Run the Application
+🔹 Key Configurations
+Parameter	Description
+model_name	LLM model used for responses.
+embedding_model_name	HuggingFace model for embeddings.
+max_memory_gb	Memory threshold warning.
+index_path	FAISS index storage path.
+remove_think	Whether to remove <think> tags from responses.
+folder_paths	List of folders to index documents from.
+3. Running the App
+3.1. First Run (Creates FAISS Index)
 
 python rag_pipeline.py
 
-Gradio will launch a local server. You will see an output such as:
+    If faiss_index does not exist, it will build a new index from documents.
+    If faiss_index already exists, it will reuse the saved index.
 
-Running on local URL:  http://127.0.0.1:7860
+3.2. Updating Documents? Rebuild the Index
 
-Open that link in your browser, and you can start asking questions about your documents.
+If you add new files or change the embedding model, delete the FAISS index to force a rebuild:
 
-Usage Notes
+rm -rf faiss_index  # Linux/macOS
+rmdir /s /q faiss_index  # Windows
 
-    First Run: The script will parse all documents in folder_path, build a FAISS index, and store it in index_path. On subsequent runs, it will reuse that index (which saves time). When there was a change in your docs you need to remove the index_path dir so that app will index the files again.
-    Adding/Updating Documents: If you add new files or want to re-index, simply remove (or rename) the index_path folder and rerun. This forces a full rebuild.
-    Memory Usage: The script logs your memory usage before answering each question. If you’re running large models on low-resources hardware, consider using smaller or quantized models.
-    Removing <think>: If remove_think is true in config.yaml, the script will strip <think>...</think> from the final answers. If you want to see the full raw response from the LLM, set remove_think to false.
+Then, rerun the script:
 
-Troubleshooting
+python rag_pipeline.py
 
-    Missing Packages: If you encounter an ImportError or ModuleNotFoundError, add the missing library to requirements.txt and reinstall.
-    FAISS GPU: If you have a GPU and want faster similarity search, replace faiss-cpu with faiss-gpu (and ensure you have CUDA installed).
-    Version Conflicts: If you see version mismatches (e.g., with torch or transformers), pin the versions in requirements.txt or upgrade/downgrade accordingly.
+4. Using the Chat Interface
 
+The chatbot runs on Gradio and will open a browser window at:
 
- ## License
+http://127.0.0.1:7860
 
-This project is licensed under the [Apache License 2.0](LICENSE).
+4.1. Asking Questions
 
+    The chatbot remembers previous questions in the same session.
+    It searches for relevant document snippets and uses them to generate an answer.
+    Example:
+
+    User: What is mentioned in the documents about Company XYZ?
+    Assistant: Based on the retrieved documents, Company XYZ was involved in...
+
+4.2. Clearing the Chat
+
+Click the "Clear Chat" button to reset conversation memory.
+5. Supported File Formats
+File Type	Supported?
+✅ PDF	✔ Yes
+✅ DOCX	✔ Yes
+✅ XLSX	✔ Yes
+✅ TXT	✔ Yes
+✅ CSV	✔ Yes (new!)
+6. Troubleshooting
+6.1. SSH Host Key Error When Cloning Repo
+
+If you see:
+
+Host key verification failed.
+
+Fix it by running:
+
+ssh-keygen -R github.com
+ssh -T git@github.com
+
+6.2. FAISS Embedding Dimension Mismatch
+
+If you get:
+
+AssertionError: d == self.d
+
+You changed the embedding model but are still using an old FAISS index. Delete and rebuild:
+
+rm -rf faiss_index
+python rag_pipeline.py
+
+6.3. Gradio Error: 'dict' object has no attribute 'replace'
+
+This happens if the retriever is passed a dictionary instead of a string. Make sure your pipeline extracts only the "question" key when calling retriever.
+7. License
+
+This project is licensed under the Apache License 2.0.
+Patent Grant
+
+This license provides an explicit grant of patent rights from contributors to users. See the LICENSE file for details.
+Disclaimer
+
+This software is provided on an "AS IS" basis, without warranties or conditions of any kind.
