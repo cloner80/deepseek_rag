@@ -113,13 +113,6 @@ File Type	Supported?
 
 If you see:
 
-Host key verification failed.
-
-Fix it by running:
-
-ssh-keygen -R github.com
-ssh -T git@github.com
-
 6.2. FAISS Embedding Dimension Mismatch
 
 If you get:
