@@ -53,8 +53,8 @@ index_path: "faiss_index"
 remove_think: true
 
 folder_paths:
-  - "/Users/pawel/edyta_pendrive_backup"
-  - "/Users/pawel/KsiegiWieczyste/ksiegi"
+  - "/XXX/YYY/ZZZ"
+  - "/XXX2/YYY2/ZZZZ2"
 
 🔹 Key Configurations
 Parameter	Description
