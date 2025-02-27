@@ -266,7 +266,9 @@ def main():
         # Append assistant reply
         history.append({"role": "assistant", "content": response})
 
-        return history, history
+        # Return updated chatbot messages, updated state, AND an empty string
+        # for the textbox (this resets "Your question" to blank)
+        return history, history, ""
 
     # 5. Build Gradio interface
     with gr.Blocks() as demo:
@@ -282,19 +284,20 @@ def main():
         state = gr.State([])  # empty list => no conversation yet
 
         # The user hits enter on the textbox => call chat
+        # Notice we now have three outputs: chatbot, state, and msg
         msg.submit(
             fn=chat,
             inputs=[msg, state],
-            outputs=[chatbot, state]
+            outputs=[chatbot, state, msg]
         )
 
         def clear_chat():
-            return [], []
+            return [], [], ""
 
         clear_btn.click(
             fn=clear_chat,
             inputs=[],
-            outputs=[chatbot, state]
+            outputs=[chatbot, state, msg]
         )
 
         # Launch Gradio
@@ -302,4 +305,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
