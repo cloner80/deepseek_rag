@@ -66,7 +66,7 @@ folder_paths:
   - "/XXX/YYY/ZZZ"
   - "/XXX2/YYY2/ZZZZ2"
 
-folder_paths on Windows need to insert list this:
+folder_paths on Windows need to be inserted list this:
 
 folder_paths:
   - "C:\\XXX\\YYY\\ZZZ"
