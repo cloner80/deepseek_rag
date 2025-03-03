@@ -1,6 +1,6 @@
 # Core Python version requirement
 # python_version >= "3.10"
-numpy<2
+numpy
 # FAISS CPU version
 faiss-cpu
 

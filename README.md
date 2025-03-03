@@ -1,7 +1,7 @@
 # RAG Pipeline with Gradio and FAISS
 
 This repository contains a **Retrieval-Augmented Generation (RAG) pipeline** with:
-- **Multi-document ingestion**: Extracts text from PDFs, DOCX, XLSX, CSV, and TXT files.
+- **Multi-document ingestion**: Extracts text from PDFs, DOCX, XLSX, CSV, MD and TXT files.
 - **Multi-folder support**: Indexes documents from multiple directories.
 - **Vector storage with FAISS**: Uses embeddings for semantic search.
 - **Conversational memory**: Supports multi-turn chat history.
@@ -10,7 +10,7 @@ This repository contains a **Retrieval-Augmented Generation (RAG) pipeline** wit
 
 ## **Features**
 - ✅ **Multiple folder support** (specify more than one directory in `config.yaml`).
-- ✅ **Expanded file support**: Now supports **CSV** in addition to **PDF, DOCX, XLSX, and TXT**.
+- ✅ **Expanded file support**: Now supports **MD** in addition to **CSV**, **PDF, DOCX, XLSX, and TXT**.
 - ✅ **Conversation memory**: The chatbot remembers previous questions in the session.
 - ✅ **Automatic FAISS index reuse**: Saves and reloads the index instead of rebuilding it every time.
 - ✅ **Gradio-based UI**: Interactive web interface to ask questions.
@@ -18,6 +18,15 @@ This repository contains a **Retrieval-Augmented Generation (RAG) pipeline** wit
 ---
 
 ## **1. Installation**
+
+### **1.0. Install Ollamay**
+
+Install Ollama from webpage - https://ollama.com/
+Then start Ollama app on your computer
+Pull the model that you would like to use eg.
+Open terminal window and execute:
+```bash
+ollama pull deepseek-r1:1.5b
 
 ### **1.1. Clone the Repository**
 ```bash
@@ -52,9 +61,16 @@ max_memory_gb: 3.0
 index_path: "faiss_index"
 remove_think: true
 
+# On Mac and Linux:
 folder_paths:
   - "/XXX/YYY/ZZZ"
   - "/XXX2/YYY2/ZZZZ2"
+
+folder_paths on Windows need to insert list this:
+
+folder_paths:
+  - "C:\\XXX\\YYY\\ZZZ"
+  - "C:\\XXX2\\YYY2\\ZZZZ2"
 
 🔹 Key Configurations
 Parameter	Description
@@ -85,7 +101,7 @@ python rag_pipeline.py
 
 4. Using the Chat Interface
 
-The chatbot runs on Gradio and will open a browser window at:
+The chatbot runs on Gradio and you need to enter this url in a browser window:
 
 http://127.0.0.1:7860
 
