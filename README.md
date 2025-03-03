@@ -20,7 +20,6 @@ This repository contains a **Retrieval-Augmented Generation (RAG) pipeline** wit
 ## **1. Installation**
 
 ### **1.0. Install Ollamay**
-
 Install Ollama from webpage - https://ollama.com/
 Then start Ollama app on your computer
 Pull the model that you would like to use eg.
@@ -55,20 +54,22 @@ Before running, edit config.yaml to specify:
     Whether to strip <think> blocks from responses.
 
 Example config.yaml
-
+```ini
 model_name: "deepseek-r1:1.5b"
 embedding_model_name: "sentence-transformers/all-mpnet-base-v2"
 max_memory_gb: 3.0
 index_path: "faiss_index"
 remove_think: true
-
+```
 # On Mac and Linux:
+```ini
 folder_paths:
   - "/XXX/YYY/ZZZ"
   - "/XXX2/YYY2/ZZZZ2"
+```
 
 folder_paths on Windows need to be inserted list this:
-
+```ini
 folder_paths:
   - "C:\\XXX\\YYY\\ZZZ"
   - "C:\\XXX2\\YYY2\\ZZZZ2"
@@ -81,6 +82,8 @@ max_memory_gb	Memory threshold warning.
 index_path	FAISS index storage path.
 remove_think	Whether to remove <think> tags from responses.
 folder_paths	List of folders to index documents from.
+```
+
 3. Running the App
 3.1. First Run (Creates FAISS Index)
 
