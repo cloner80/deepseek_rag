@@ -32,19 +32,20 @@ ollama pull deepseek-r1:1.5b
 ```bash
 git clone https://github.com/yourusername/your-repo.git
 cd your-repo
+```
 
 1.2. Set Up Virtual Environment
-
+```bash
 python3 -m venv venv
 source venv/bin/activate  # macOS/Linux
 # OR (Windows)
 venv\Scripts\activate.bat
-
+```
 1.3. Install Dependencies
-
+```bash
 pip install --upgrade pip
 pip install -r requirements.txt
-
+```
 2. Configuration
 
 Before running, edit config.yaml to specify:
@@ -96,9 +97,9 @@ rm -rf faiss_index  # Linux/macOS
 rmdir /s /q faiss_index  # Windows
 
 Then, rerun the script:
-
+```bash
 python rag_pipeline.py
-
+```
 4. Using the Chat Interface
 
 The chatbot runs on Gradio and you need to enter this url in a browser window:
