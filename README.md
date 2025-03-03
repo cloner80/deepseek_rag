@@ -84,32 +84,35 @@ remove_think	Whether to remove <think> tags from responses.
 folder_paths	List of folders to index documents from.
 ```
 
-3. Running the App
-3.1. First Run (Creates FAISS Index)
+## 3. Running the App
+### 3.1. First Run (Creates FAISS Index)
 
+```bash
 python rag_pipeline.py
-
+```
     If faiss_index does not exist, it will build a new index from documents.
     If faiss_index already exists, it will reuse the saved index.
 
-3.2. Updating Documents? Rebuild the Index
+### 3.2. Updating Documents? Rebuild the Index
 
 If you add new files or change the embedding model, delete the FAISS index to force a rebuild:
 
+```bash
 rm -rf faiss_index  # Linux/macOS
 rmdir /s /q faiss_index  # Windows
+```
 
 Then, rerun the script:
 ```bash
 python rag_pipeline.py
 ```
-4. Using the Chat Interface
+## 4. Using the Chat Interface
 
 The chatbot runs on Gradio and you need to enter this url in a browser window:
 
 http://127.0.0.1:7860
 
-4.1. Asking Questions
+### 4.1. Asking Questions
 
     The chatbot remembers previous questions in the same session.
     It searches for relevant document snippets and uses them to generate an answer.
@@ -118,22 +121,22 @@ http://127.0.0.1:7860
     User: What is mentioned in the documents about Company XYZ?
     Assistant: Based on the retrieved documents, Company XYZ was involved in...
 
-4.2. Clearing the Chat
+### 4.2. Clearing the Chat
 
 Click the "Clear Chat" button to reset conversation memory.
-5. Supported File Formats
+## 5. Supported File Formats
 File Type	Supported?
 ✅ PDF	✔ Yes
 ✅ DOCX	✔ Yes
 ✅ XLSX	✔ Yes
 ✅ TXT	✔ Yes
 ✅ CSV	✔ Yes (new!)
-6. Troubleshooting
-6.1. SSH Host Key Error When Cloning Repo
+## 6. Troubleshooting
+### 6.1. SSH Host Key Error When Cloning Repo
 
 If you see:
 
-6.2. FAISS Embedding Dimension Mismatch
+### 6.2. FAISS Embedding Dimension Mismatch
 
 If you get:
 
@@ -144,10 +147,10 @@ You changed the embedding model but are still using an old FAISS index. Delete a
 rm -rf faiss_index
 python rag_pipeline.py
 
-6.3. Gradio Error: 'dict' object has no attribute 'replace'
+### 6.3. Gradio Error: 'dict' object has no attribute 'replace'
 
 This happens if the retriever is passed a dictionary instead of a string. Make sure your pipeline extracts only the "question" key when calling retriever.
-7. License
+## 7. License
 
 This project is licensed under the Apache License 2.0.
 Patent Grant
