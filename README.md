@@ -25,7 +25,7 @@ Install Ollama from webpage - https://ollama.com/
 Then start Ollama app on your computer
 Pull the model that you would like to use eg.
 Open terminal window and execute:
-```bash
+
 ollama pull deepseek-r1:1.5b
 
 ### **1.1. Clone the Repository**
