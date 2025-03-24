@@ -8,6 +8,8 @@ import re
 import yaml
 import csv
 import gradio as gr
+from PIL import Image
+import pytesseract
 
 from typing import List
 from langchain_core.documents import Document
@@ -154,6 +156,16 @@ Now answer the user's latest question: {question}
         with open(filepath, "r", encoding="utf-8", errors="ignore") as f:
             return f.read()
 
+    def extract_text_from_image(self, filepath: str) -> str:
+        """Extract text from image using Tesseract OCR."""
+        try:
+            image = Image.open(filepath)
+            text = pytesseract.image_to_string(image)
+            return text
+        except Exception as e:
+            self.logger.warning(f"OCR failed on image '{filepath}' with error: {e}")
+            return ""
+
     def extract_text(self, filepath: str) -> str:
         ext = os.path.splitext(filepath)[1].lower()
         if ext == ".pdf":
@@ -168,6 +180,8 @@ Now answer the user's latest question: {question}
             return self.extract_text_from_csv(filepath)
         elif ext == ".md":
             return self.extract_text_from_md(filepath)
+        elif ext in [".png", ".jpg", ".jpeg"]:
+            return self.extract_text_from_image(filepath)
         return ""
 
     def gather_documents_from_folder(self, folder_path: str) -> List[Document]:
@@ -178,7 +192,7 @@ Now answer the user's latest question: {question}
         docs = []
         for root, _, files in os.walk(folder_path):
             for file in files:
-                if file.lower().endswith((".pdf", ".docx", ".xlsx", ".txt", ".csv", ".md")):
+                if file.lower().endswith((".pdf", ".docx", ".xlsx", ".txt", ".csv", ".md", ".png", ".jpg", ".jpeg")):
                     path = os.path.join(root, file)
                     text = self.extract_text(path)
                     if text.strip():

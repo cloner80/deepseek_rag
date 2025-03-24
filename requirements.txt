@@ -39,3 +39,7 @@ huggingface_hub
 # If you run into missing dependencies, consider also installing:
 # accelerate
 # bitsandbytes (for quantized models, if used)
+
+# For OCR :
+pytesseract>=0.3.10
+Pillow>=9.5.0
