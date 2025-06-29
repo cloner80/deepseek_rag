@@ -10,8 +10,13 @@ import csv
 import gradio as gr
 from PIL import Image
 import pytesseract
+import requests
+from bs4 import BeautifulSoup
+from duckduckgo_search import DDGS
+from urllib.parse import urlparse
+import time
 
-from typing import List
+from typing import List, Dict, Optional
 from langchain_core.documents import Document
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnablePassthrough, RunnableLambda
@@ -50,15 +55,17 @@ class RAGPipeline:
         
         # Chat prompt template that includes chat_history
         self.chat_prompt = ChatPromptTemplate.from_template("""
-You are a helpful AI assistant that answers questions based on the provided documents.
+You are a helpful AI assistant that answers questions based on the provided documents and web search results.
 
 Conversation so far:
 {chat_history}
 
-Relevant context from the documents:
+Relevant context from the documents and web search:
 {context}
 
 Now answer the user's latest question: {question}
+
+If the context includes web search results, make sure to cite the sources when providing information.
 """)
 
     def setup_logging(self):
@@ -166,6 +173,151 @@ Now answer the user's latest question: {question}
             self.logger.warning(f"OCR failed on image '{filepath}' with error: {e}")
             return ""
 
+    def search_web(self, query: str, max_results: int = 5) -> List[Dict[str, str]]:
+        """Search the web using DuckDuckGo and return results with URLs and snippets."""
+        try:
+            with DDGS() as ddgs:
+                print(ddgs)
+                results = list(ddgs.text(query, max_results=max_results))
+                
+                # Debug: Print the structure of the first result
+                if results:
+                    self.logger.info(f"First result structure: {results[0]}")
+                    self.logger.info(f"Available keys in first result: {list(results[0].keys())}")
+                
+                # Filter out results with empty or invalid URLs
+                valid_results = []
+                for i, result in enumerate(results):
+                    # Try different possible field names for URL
+                    url = (result.get('link') or 
+                           result.get('url') or 
+                           result.get('href') or 
+                           result.get('result') or 
+                           '').strip()
+                    
+                    self.logger.info(f"Result {i}: URL field = '{url}'")
+                    
+                    if url and url.startswith(('http://', 'https://')):
+                        valid_results.append(result)
+                        self.logger.info(f"Valid URL found: {url}")
+                    else:
+                        self.logger.warning(f"Skipping result {i} with invalid URL: '{url}'")
+                        # Debug: Show all fields for this result
+                        self.logger.info(f"Result {i} all fields: {result}")
+                
+                return valid_results
+        except Exception as e:
+            self.logger.error(f"Web search failed: {e}")
+            return []
+
+    def extract_text_from_url(self, url: str, timeout: int = 10) -> str:
+        """Extract text content from a web page."""
+        try:
+            # Validate URL
+            if not url or not url.strip():
+                self.logger.warning("Empty URL provided")
+                return ""
+            
+            url = url.strip()
+            if not url.startswith(('http://', 'https://')):
+                self.logger.warning(f"Invalid URL scheme: {url}")
+                return ""
+            
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+            }
+            response = requests.get(url, headers=headers, timeout=timeout)
+            response.raise_for_status()
+            
+            soup = BeautifulSoup(response.content, 'html.parser')
+            
+            # Remove script and style elements
+            for script in soup(["script", "style"]):
+                script.decompose()
+            
+            # Get text content
+            text = soup.get_text()
+            
+            # Clean up whitespace
+            lines = (line.strip() for line in text.splitlines())
+            chunks = (phrase.strip() for line in lines for phrase in line.split("  "))
+            text = ' '.join(chunk for chunk in chunks if chunk)
+            
+            return text[:5000]  # Limit to first 5000 characters to avoid too long documents
+        except requests.exceptions.RequestException as e:
+            self.logger.warning(f"Request failed for URL '{url}': {e}")
+            return ""
+        except Exception as e:
+            self.logger.warning(f"Failed to extract text from URL '{url}': {e}")
+            return ""
+
+    def search_and_extract_web_content(self, query: str, max_results: int = 3) -> List[Document]:
+        """Search the web and extract content from the top results."""
+        self.logger.info(f"Searching web for: {query}")
+        
+        # Search the web
+        search_results = self.search_web(query, max_results=max_results)
+        
+        if not search_results:
+            self.logger.warning("No valid search results found")
+            return []
+        
+        self.logger.info(f"Found {len(search_results)} valid search results")
+        
+        documents = []
+        for i, result in enumerate(search_results):
+            try:
+                # Try different possible field names for URL, title, and body
+                url = (result.get('link') or 
+                       result.get('url') or 
+                       result.get('href') or 
+                       result.get('result') or 
+                       '').strip()
+                
+                title = (result.get('title') or 
+                        result.get('name') or 
+                        result.get('heading') or 
+                        '').strip()
+                
+                snippet = (result.get('body') or 
+                          result.get('snippet') or 
+                          result.get('description') or 
+                          result.get('text') or 
+                          '').strip()
+                
+                self.logger.info(f"Processing result {i+1}: {url}")
+                
+                # Extract full text from the webpage
+                full_text = self.extract_text_from_url(url)
+                
+                if full_text:
+                    # Combine title, snippet, and full text
+                    combined_text = f"Title: {title}\n\nSnippet: {snippet}\n\nFull Content: {full_text}"
+                    
+                    doc = Document(
+                        page_content=combined_text,
+                        metadata={
+                            "source": url,
+                            "title": title,
+                            "search_query": query,
+                            "result_index": i
+                        }
+                    )
+                    documents.append(doc)
+                    self.logger.info(f"Successfully extracted content from: {url}")
+                else:
+                    self.logger.warning(f"No content extracted from: {url}")
+                
+                # Add a small delay to be respectful to websites
+                time.sleep(1)
+                
+            except Exception as e:
+                self.logger.warning(f"Failed to process search result {i}: {e}")
+                continue
+        
+        self.logger.info(f"Successfully processed {len(documents)} documents from web search")
+        return documents
+
     def extract_text(self, filepath: str) -> str:
         ext = os.path.splitext(filepath)[1].lower()
         if ext == ".pdf":
@@ -253,6 +405,46 @@ Now answer the user's latest question: {question}
         self.logger.info(f"Memory usage: {memory_usage:.1f} MB")
         return chain.invoke(chain_inputs)
 
+    def should_search_web(self, question: str) -> bool:
+        """Determine if a question requires web search based on keywords and patterns."""
+        # Keywords that suggest need for current/recent information
+        web_keywords = [
+            'latest', 'recent', 'current', 'today', 'yesterday', 'this week', 'this month',
+            'news', 'update', 'breaking', 'trending', 'popular', 'best', 'top',
+            'price', 'cost', 'where to buy', 'how much', 'compare',
+            'weather', 'forecast', 'temperature',
+            'stock', 'market', 'crypto', 'bitcoin',
+            'movie', 'film', 'show', 'series', 'release date',
+            'restaurant', 'hotel', 'travel', 'vacation', 'trip'
+        ]
+        
+        # Questions that typically need current information
+        web_patterns = [
+            r'\bwhat is the (latest|current|recent)\b',
+            r'\bwhat are the (latest|current|recent)\b',
+            r'\bwhen (was|is|will)\b',
+            r'\bwhere (can|could|should)\b',
+            r'\bhow much (does|do|is|are)\b',
+            r'\bwhat (is|are) the (best|top|worst)\b',
+            r'\bcompare\b',
+            r'\bvs\b',
+            r'\bversus\b'
+        ]
+        
+        question_lower = question.lower()
+        
+        # Check for web keywords
+        for keyword in web_keywords:
+            if keyword in question_lower:
+                return True
+        
+        # Check for web patterns
+        for pattern in web_patterns:
+            if re.search(pattern, question_lower):
+                return True
+        
+        return False
+
 
 def build_pipeline(config: dict):
     rag = RAGPipeline(
@@ -283,56 +475,173 @@ def build_pipeline(config: dict):
     return rag, chain
 
 
+def build_hybrid_pipeline(config: dict):
+    """Build a hybrid pipeline that can search both local documents and the web."""
+    rag = RAGPipeline(
+        model_name=config["model_name"],
+        embedding_model_name=config["embedding_model_name"],
+        max_memory_gb=config["max_memory_gb"]
+    )
+
+    # Build local document vectorstore
+    all_docs = []
+    folder_paths = config.get("folder_paths", [])
+    for folder_path in folder_paths:
+        doc_splits = rag.gather_documents_from_folder(folder_path)
+        all_docs.extend(doc_splits)
+
+    if not all_docs:
+        rag.logger.warning("No documents found in any specified folders. The vectorstore will be empty.")
+
+    index_path = config["index_path"]
+    if os.path.exists(index_path):
+        rag.logger.info("Loading existing FAISS index from disk...")
+        vectorstore = FAISS.load_local(index_path, rag.embeddings, allow_dangerous_deserialization=True)
+    else:
+        rag.logger.info("Creating a new FAISS index and saving it locally...")
+        vectorstore = rag.create_vectorstore(all_docs)
+        vectorstore.save_local(index_path)
+
+    chain = rag.setup_rag_chain(vectorstore)
+    return rag, chain, vectorstore
+
+
 def main():
     config = load_config("config.yaml")
-    rag, chain = build_pipeline(config)
+    rag, chain, vectorstore = build_hybrid_pipeline(config)
     remove_think_flag = config.get("remove_think", True)
-
-    def chat(user_message, history):
-        conversation_text = ""
-        for msg_dict in history:
-            role = msg_dict["role"]
-            content = msg_dict["content"]
-            if role == "user":
-                conversation_text += f"User: {content}\n"
-            else:
-                conversation_text += f"Assistant: {content}\n"
-
-        chain_inputs = {
-            "chat_history": conversation_text,
-            "question": user_message
-        }
-
-        response = rag.query(chain, chain_inputs)
-        if remove_think_flag:
-            response = re.sub(r'<think>.*?</think>', '', response, flags=re.DOTALL).strip()
-
-        history.append({"role": "user", "content": user_message})
-        history.append({"role": "assistant", "content": response})
-        return history, history, ""
+    enable_web_search = config.get("enable_web_search", True)
 
     with gr.Blocks() as demo:
-        gr.Markdown("## RAG Chat with Conversation History")
+        gr.Markdown("## RAG Chat with Conversation History and Web Search")
 
-        chatbot = gr.Chatbot(label="Conversation", type="messages")
-        msg = gr.Textbox(label="Your question")
+        with gr.Row():
+            with gr.Column(scale=3):
+                chatbot = gr.Chatbot(label="Conversation", type="messages")
+                msg = gr.Textbox(label="Your question")
+                
+                with gr.Row():
+                    submit_btn = gr.Button("Send", variant="primary")
+                    web_search_btn = gr.Button("🔍 Web Search", variant="secondary")
+                    clear_btn = gr.Button("Clear Chat")
+                
+                status = gr.Textbox(label="Status", interactive=False, value="Ready")
+            
+            with gr.Column(scale=1):
+                gr.Markdown("### Settings")
+                web_search_toggle = gr.Checkbox(
+                    label="Enable Web Search", 
+                    value=enable_web_search,
+                    info="Automatically search the web for current/recent information"
+                )
+                
+                gr.Markdown("### Web Search Options")
+                gr.Markdown("""
+                **Automatic Web Search** is triggered for questions about:
+                - Latest/current/recent information
+                - News and updates
+                - Prices and comparisons
+                - Weather and forecasts
+                - Movies, shows, release dates
+                - Restaurants, hotels, travel
+                - Stock market and crypto
+                
+                **Manual Web Search** button forces web search for any query, regardless of automatic detection.
+                """)
 
-        clear_btn = gr.Button("Clear Chat")
         state = gr.State([])
 
+        def chat_with_status(user_message, history, web_search_enabled, manual_web_search=False):
+            # Determine if we should search the web
+            should_search = (web_search_enabled and rag.should_search_web(user_message)) or manual_web_search
+            
+            if should_search:
+                if manual_web_search:
+                    status_text = "🔍 Manually searching the web..."
+                else:
+                    status_text = "🔍 Searching the web for current information..."
+            else:
+                status_text = "📚 Searching local documents..."
+            
+            conversation_text = ""
+            for msg_dict in history:
+                role = msg_dict["role"]
+                content = msg_dict["content"]
+                if role == "user":
+                    conversation_text += f"User: {content}\n"
+                else:
+                    conversation_text += f"Assistant: {content}\n"
+
+            if should_search:
+                # Search the web and add results to vectorstore temporarily
+                web_docs = rag.search_and_extract_web_content(user_message, max_results=3)
+                if web_docs:
+                    # Create a temporary vectorstore with web results
+                    temp_vectorstore = rag.create_vectorstore(web_docs)
+                    temp_chain = rag.setup_rag_chain(temp_vectorstore)
+                    
+                    chain_inputs = {
+                        "chat_history": conversation_text,
+                        "question": user_message
+                    }
+                    response = rag.query(temp_chain, chain_inputs)
+                    if manual_web_search:
+                        status_text = f"✅ Manual web search completed - Found {len(web_docs)} web sources"
+                    else:
+                        status_text = f"✅ Found {len(web_docs)} web sources"
+                else:
+                    # Fall back to local documents if web search fails
+                    chain_inputs = {
+                        "chat_history": conversation_text,
+                        "question": user_message
+                    }
+                    response = rag.query(chain, chain_inputs)
+                    if manual_web_search:
+                        status_text = "⚠️ Manual web search failed, using local documents"
+                    else:
+                        status_text = "⚠️ Web search failed, using local documents"
+            else:
+                # Use local documents only
+                chain_inputs = {
+                    "chat_history": conversation_text,
+                    "question": user_message
+                }
+                response = rag.query(chain, chain_inputs)
+                status_text = "✅ Answered using local documents"
+
+            if remove_think_flag:
+                response = re.sub(r'<think>.*?</think>', '', response, flags=re.DOTALL).strip()
+
+            history.append({"role": "user", "content": user_message})
+            history.append({"role": "assistant", "content": response})
+            
+            return history, history, "", status_text
+
         msg.submit(
-            fn=chat,
-            inputs=[msg, state],
-            outputs=[chatbot, state, msg]
+            fn=chat_with_status,
+            inputs=[msg, state, web_search_toggle],
+            outputs=[chatbot, state, msg, status]
+        )
+        
+        submit_btn.click(
+            fn=chat_with_status,
+            inputs=[msg, state, web_search_toggle],
+            outputs=[chatbot, state, msg, status]
+        )
+        
+        web_search_btn.click(
+            fn=chat_with_status,
+            inputs=[msg, state, web_search_toggle, gr.State(True)],
+            outputs=[chatbot, state, msg, status]
         )
 
         def clear_chat():
-            return [], [], ""
+            return [], [], "", "Ready"
 
         clear_btn.click(
             fn=clear_chat,
             inputs=[],
-            outputs=[chatbot, state, msg]
+            outputs=[chatbot, state, msg, status]
         )
 
         demo.launch()

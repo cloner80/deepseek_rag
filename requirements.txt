@@ -29,6 +29,11 @@ PyYAML
 # Gradio UI
 gradio
 
+# Web search and scraping
+duckduckgo-search
+requests
+beautifulsoup4
+
 # Regex, logging, os, re are built-in, no need to specify
 
 transformers

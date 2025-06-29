@@ -6,6 +6,11 @@ max_memory_gb: 3.0
 index_path: "faiss_index"
 remove_think: true
 
+# Web search configuration
+enable_web_search: true
+max_web_results: 3
+web_search_timeout: 10
+
 # Now a list of folder paths:
 folder_paths:
   - "/XXX/YYY/ZZZ"
